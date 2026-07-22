@@ -12,7 +12,9 @@ if (admin.apps.length === 0) {
   });
 }
 
+// Force REST transport — Vercel free tier blocks gRPC (causes DEADLINE_EXCEEDED)
 const db = admin.firestore();
+db.settings({ preferRest: true });
 
 module.exports = async (req, res) => {
   // Only handle POST requests
