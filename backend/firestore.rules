@@ -1,0 +1,10 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // calls collection: app reads, Cloud Function writes
+    match /calls/{callId} {
+      allow read: if true;  // tighten in production with staff auth
+      allow write: if false; // only Cloud Function (admin SDK) writes
+    }
+  }
+}

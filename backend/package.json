@@ -1,0 +1,13 @@
+{
+  "name": "ava-backend-express",
+  "version": "1.0.0",
+  "description": "Standalone Node.js webhook API for AVA",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "firebase-admin": "^12.1.1"
+  }
+}
