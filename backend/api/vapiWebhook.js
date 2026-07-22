@@ -24,12 +24,9 @@ module.exports = async (req, res) => {
     const body = req.body;
     const msg = body.message ?? body;
 
-    // Respond immediately to prevent any client-side timeouts
-    res.status(200).json({ status: 'received' });
-
-    // Handle end-of-call report asynchronously
+    // Handle end-of-call report
     if (msg.type !== 'end-of-call-report') {
-      return;
+      return res.status(200).json({ status: 'ignored', type: msg.type });
     }
 
     const call = msg.call ?? {};
@@ -69,10 +66,14 @@ module.exports = async (req, res) => {
       ? db.collection('calls').doc(call.id)
       : db.collection('calls').doc();
 
+    // Await the write so Vercel does not terminate it early
     await docRef.set(record, { merge: true });
     console.log(`[Success] Written call ${docRef.id} with outcome: ${outcome}`);
+
+    return res.status(200).json({ status: 'ok', id: docRef.id });
   } catch (err) {
     console.error('[Error] Vercel database write failed:', err);
+    return res.status(500).json({ error: 'Internal server error' });
   }
 };
 
