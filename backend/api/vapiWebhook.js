@@ -6,7 +6,7 @@ const path = require('path');
 
 // Initialize Firebase Admin SDK (Singleton pattern for Serverless)
 if (admin.apps.length === 0) {
-  const serviceAccount = require(path.join(process.cwd(), 'service-account.json'));
+  const serviceAccount = require(path.join(__dirname, '..', 'service-account.json'));
   admin.initializeApp({
     credential: admin.credential.cert(serviceAccount)
   });
