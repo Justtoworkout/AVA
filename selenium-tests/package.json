@@ -8,7 +8,7 @@
     "generate-excel": "node generate-excel.js"
   },
   "dependencies": {
-    "selenium-webdriver": "^4.22.0",
-    "xlsx": "^0.18.5"
+    "exceljs": "^4.4.0",
+    "selenium-webdriver": "^4.22.0"
   }
 }

@@ -7,6 +7,6 @@
     "generate-excel": "node generate-excel.js"
   },
   "dependencies": {
-    "xlsx": "^0.18.5"
+    "exceljs": "^4.4.0"
   }
 }
