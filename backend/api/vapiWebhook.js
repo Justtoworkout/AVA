@@ -1,8 +1,8 @@
 // backend/api/vapiWebhook.js
-// Pure REST approach — no firebase-admin, no gRPC, no SDK auth issues.
-// Uses Node.js built-in crypto + fetch to talk directly to Firestore REST API.
+// Pure REST — no firebase-admin gRPC issues.
+// Uses google-auth-library (bundled with firebase-admin) for OAuth tokens.
 
-const crypto = require('crypto');
+const { JWT } = require('google-auth-library');
 
 // ─── Service Account (inlined) ───────────────────────────────────────────────
 const SA = {
@@ -15,38 +15,23 @@ const FIRESTORE_BASE =
   `https://firestore.googleapis.com/v1/projects/${SA.project_id}/databases/(default)/documents`;
 
 // ─── OAuth2 token via JWT (RS256) ─────────────────────────────────────────────
-async function getAccessToken() {
-  const now = Math.floor(Date.now() / 1000);
-  const header  = Buffer.from(JSON.stringify({ alg: 'RS256', typ: 'JWT' })).toString('base64url');
-  const payload = Buffer.from(JSON.stringify({
-    iss: SA.client_email,
-    scope: 'https://www.googleapis.com/auth/datastore',
-    aud: 'https://oauth2.googleapis.com/token',
-    iat: now,
-    exp: now + 3600,
-  })).toString('base64url');
-
-  const signer = crypto.createSign('RSA-SHA256');
-  signer.update(`${header}.${payload}`);
-  // .sign() without encoding returns a Buffer; convert to base64url manually
-  const sig = signer.sign(SA.private_key).toString('base64url');
-  const jwt = `${header}.${payload}.${sig}`;
-
-  const res = await fetch('https://oauth2.googleapis.com/token', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({
-      grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
-      assertion: jwt,
-    }),
-  });
-
-  if (!res.ok) {
-    const txt = await res.text();
-    throw new Error(`Token fetch failed: ${res.status} ${txt}`);
+// Cache the JWT client so we reuse tokens across warm invocations
+let _jwtClient = null;
+function getJwtClient() {
+  if (!_jwtClient) {
+    _jwtClient = new JWT({
+      email: SA.client_email,
+      key: SA.private_key,
+      scopes: ['https://www.googleapis.com/auth/datastore'],
+    });
   }
-  const data = await res.json();
-  return data.access_token;
+  return _jwtClient;
+}
+
+async function getAccessToken() {
+  const client = getJwtClient();
+  const token = await client.getAccessToken();
+  return token.token;
 }
 
 // ─── Convert JS value → Firestore typed field ────────────────────────────────
