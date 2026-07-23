@@ -1,0 +1,11 @@
+# .gitleaks.toml
+# Gitleaks configuration file to allowlist false positives
+
+[allowlist]
+description = "Ignore Firebase client config and test suite files"
+paths = [
+    '''lib/firebase_options\.dart''',
+    '''Vulnerability Test Results/''',
+    '''selenium-tests/''',
+    '''appium-tests/'''
+]
