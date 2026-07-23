@@ -95,6 +95,7 @@ class _MainShellState extends State<MainShell> {
           onDestinationSelected: (i) => setState(() => _currentIndex = i),
           destinations: _navItems
               .map((item) => NavigationDestination(
+                    key: ValueKey('nav_${item.label.toLowerCase()}'),
                     icon: Icon(item.icon, color: AppTheme.textMuted),
                     selectedIcon:
                         Icon(item.activeIcon, color: AppTheme.primary),

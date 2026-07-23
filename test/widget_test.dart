@@ -1,30 +1,71 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
+// test/widget_test.dart
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-
-import 'package:ava_app/main.dart';
+import 'package:ava_app/models/appointment.dart';
+import 'package:ava_app/models/call_record.dart';
+import 'package:ava_app/widgets/appointment_card.dart';
+import 'package:ava_app/widgets/call_list_tile.dart';
+import 'package:ava_app/widgets/outcome_badge.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const AvaApp());
+  testWidgets('OutcomeBadge renders booked status correctly',
+      (WidgetTester tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: OutcomeBadge(outcome: 'booked'),
+        ),
+      ),
+    );
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+    expect(find.text('Booked'), findsOneWidget);
+  });
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
+  testWidgets('AppointmentCard renders appointment details and handles tap',
+      (WidgetTester tester) async {
+    final appt = Appointment(
+      id: 'test_1',
+      title: 'Dental appointment for Kevin',
+      start: DateTime.now().add(const Duration(hours: 2)),
+      end: DateTime.now().add(const Duration(hours: 3)),
+      location: 'Main Clinic Room 204',
+      status: 'confirmed',
+    );
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: AppointmentCard(appt: appt),
+        ),
+      ),
+    );
+
+    expect(find.text('Dental appointment for Kevin'), findsOneWidget);
+    expect(find.text('Main Clinic Room 204'), findsOneWidget);
+  });
+
+  testWidgets('CallListTile renders call record patient number and outcome',
+      (WidgetTester tester) async {
+    final call = CallRecord(
+      id: 'call_1',
+      patientNumber: '+919876543210',
+      timestamp: DateTime.now(),
+      durationSeconds: 90,
+      outcome: 'booked',
+      transcript: 'Patient: Hello\nAVA: Booked',
+      summary: 'Patient booked appointment for tomorrow at 10 AM.',
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: CallListTile(call: call),
+        ),
+      ),
+    );
+
+    expect(find.text('+919876543210'), findsOneWidget);
+    expect(find.text('Booked'), findsOneWidget);
   });
 }

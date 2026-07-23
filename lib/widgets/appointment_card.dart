@@ -44,6 +44,7 @@ class AppointmentCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
+          key: ValueKey('appointment_card_${appt.id}'),
           onTap: onTap ?? () => AppointmentDetailSheet.show(context, appt),
           child: IntrinsicHeight(
         child: Row(

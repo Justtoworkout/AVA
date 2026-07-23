@@ -27,6 +27,7 @@ class CallListTile extends StatelessWidget {
         : DateFormat('MMM d').format(call.timestamp);
 
     return InkWell(
+      key: ValueKey('call_tile_${call.id}'),
       onTap: onTap,
       borderRadius: BorderRadius.circular(16),
       child: Container(

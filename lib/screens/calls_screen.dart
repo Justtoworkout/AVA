@@ -117,6 +117,7 @@ class _FilterBar extends StatelessWidget {
           final (key, label) = filters[i];
           final isSelected = selected == key;
           return GestureDetector(
+            key: ValueKey('filter_$key'),
             onTap: () => onChanged(key),
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 200),
