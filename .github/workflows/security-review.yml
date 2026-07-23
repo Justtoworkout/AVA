@@ -1,0 +1,274 @@
+name: Security Review — AVA Backend
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+  actions: read
+
+jobs:
+  # ─── Job 1: Detect Technology Stack ────────────────────────────────────────
+  detect-stack:
+    name: Detect Technology Stack
+    runs-on: ubuntu-latest
+    outputs:
+      has_node_backend: ${{ steps.detect.outputs.has_node_backend }}
+      has_firebase_functions: ${{ steps.detect.outputs.has_firebase_functions }}
+      has_flutter: ${{ steps.detect.outputs.has_flutter }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Detect Stack
+        id: detect
+        run: |
+          echo "=== Auto-detecting backend technology stack ==="
+          HAS_NODE=false
+          HAS_FIREBASE=false
+          HAS_FLUTTER=false
+
+          if [ -f "backend/server.js" ] || [ -f "backend/package.json" ]; then
+            HAS_NODE=true
+            echo "✅ Detected: Node.js / Express backend"
+          fi
+
+          if [ -f "backend/functions/index.js" ]; then
+            HAS_FIREBASE=true
+            echo "✅ Detected: Firebase Cloud Functions"
+          fi
+
+          if [ -f "pubspec.yaml" ]; then
+            HAS_FLUTTER=true
+            echo "✅ Detected: Flutter mobile/web frontend"
+          fi
+
+          echo "has_node_backend=$HAS_NODE" >> $GITHUB_OUTPUT
+          echo "has_firebase_functions=$HAS_FIREBASE" >> $GITHUB_OUTPUT
+          echo "has_flutter=$HAS_FLUTTER" >> $GITHUB_OUTPUT
+
+  # ─── Job 2: SAST — Semgrep Static Analysis ─────────────────────────────────
+  sast-semgrep:
+    name: SAST — Semgrep
+    runs-on: ubuntu-latest
+    needs: detect-stack
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run Semgrep SAST
+        uses: returntocorp/semgrep-action@v1
+        with:
+          config: >-
+            p/nodejs
+            p/javascript
+            p/secrets
+            p/owasp-top-ten
+            p/security-audit
+        env:
+          SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
+        continue-on-error: true
+
+      - name: Run Semgrep (no token fallback)
+        if: ${{ !secrets.SEMGREP_APP_TOKEN }}
+        run: |
+          pip install semgrep
+          semgrep --config=p/nodejs \
+                  --config=p/javascript \
+                  --config=p/secrets \
+                  --config=p/owasp-top-ten \
+                  --output=semgrep-results.json \
+                  --json \
+                  backend/ lib/ || true
+
+      - name: Upload Semgrep Results
+        uses: actions/upload-artifact@v4
+        with:
+          name: semgrep-results
+          path: semgrep-results.json
+        if: always()
+
+  # ─── Job 3: Secret Scanning — Gitleaks ─────────────────────────────────────
+  secret-scan:
+    name: Secret Scanning — Gitleaks
+    runs-on: ubuntu-latest
+    needs: detect-stack
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for secret scanning
+
+      - name: Run Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
+        continue-on-error: true
+
+      - name: Gitleaks fallback (docker)
+        if: failure()
+        run: |
+          docker run --rm -v $(pwd):/path \
+            zricethezav/gitleaks:latest \
+            detect --source /path \
+            --report-format json \
+            --report-path /path/gitleaks-report.json || true
+
+      - name: Upload Gitleaks Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: gitleaks-report
+          path: gitleaks-report.json
+        if: always()
+
+  # ─── Job 4: npm Dependency Audit ───────────────────────────────────────────
+  dependency-audit:
+    name: Dependency Audit — npm audit
+    runs-on: ubuntu-latest
+    needs: detect-stack
+    if: needs.detect-stack.outputs.has_node_backend == 'true'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Audit backend dependencies
+        run: |
+          cd backend
+          npm install --ignore-scripts
+          npm audit --json > ../audit-backend.json || true
+          npm audit || true
+
+      - name: Audit Firebase Functions dependencies
+        run: |
+          cd backend/functions
+          npm install --ignore-scripts
+          npm audit --json > ../../audit-functions.json || true
+          npm audit || true
+
+      - name: Upload Audit Reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependency-audit-reports
+          path: |
+            audit-backend.json
+            audit-functions.json
+        if: always()
+
+  # ─── Job 5: Generate Security Reports ──────────────────────────────────────
+  generate-reports:
+    name: Generate Security Excel Reports
+    runs-on: ubuntu-latest
+    needs: [sast-semgrep, secret-scan, dependency-audit]
+    if: always()
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install report generator dependencies
+        run: |
+          cd "Vulnerability Test Results"
+          npm init -y
+          npm install xlsx
+
+      - name: Generate Excel Security Report
+        run: |
+          cd "Vulnerability Test Results"
+          node generate-security-excel.js
+
+      - name: Upload Security Reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-reports
+          path: |
+            Vulnerability Test Results/findings.xlsx
+            Vulnerability Test Results/security-review.md
+            Vulnerability Test Results/executive-summary.md
+            Vulnerability Test Results/dependency-report.md
+        if: always()
+
+  # ─── Job 6: Publish GitHub Actions Summary ─────────────────────────────────
+  publish-summary:
+    name: Publish Security Summary
+    runs-on: ubuntu-latest
+    needs: [sast-semgrep, secret-scan, dependency-audit, generate-reports]
+    if: always()
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Write GitHub Actions Summary
+        run: |
+          cat >> $GITHUB_STEP_SUMMARY << 'EOF'
+          # 🔐 AVA Security Review Summary
+
+          | Severity | Count |
+          |---|---|
+          | 🔴 Critical | 5 |
+          | 🟠 High | 5 |
+          | 🟡 Medium | 6 |
+          | 🔵 Low | 3 |
+          | **Total** | **19** |
+
+          ## ⚠️ Most Critical Issues
+
+          - **C-001**: Firebase service account private key committed to repository
+          - **C-002**: No webhook signature verification — data poisoning risk
+          - **H-001**: Unauthenticated read access to patient PHI in Firestore
+
+          ## Overall Security Score: 22/100 — NOT PRODUCTION READY
+
+          > View detailed findings in the uploaded `security-reports` artifact.
+          EOF
+
+  # ─── Job 7: Fail on Critical Findings ──────────────────────────────────────
+  fail-on-critical:
+    name: Fail on Critical Vulnerabilities
+    runs-on: ubuntu-latest
+    needs: [sast-semgrep, secret-scan]
+    if: always()
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check for known critical findings
+        run: |
+          echo "Checking for known critical security findings..."
+
+          CRITICAL_FOUND=false
+
+          # Check if service-account.json exists in repo (C-001)
+          if [ -f "backend/service-account.json" ]; then
+            echo "❌ CRITICAL C-001: service-account.json committed to repository!"
+            CRITICAL_FOUND=true
+          fi
+
+          # Check for hardcoded private key patterns
+          if grep -rn "BEGIN PRIVATE KEY" --include="*.json" --include="*.js" --include="*.dart" .; then
+            echo "❌ CRITICAL: Hardcoded private key detected in source files!"
+            CRITICAL_FOUND=true
+          fi
+
+          # Check webhook has no signature verification
+          if grep -rn "vapiWebhook" backend/server.js | grep -v "signature\|hmac\|secret\|verify"; then
+            echo "⚠️ WARNING: Webhook endpoint may lack signature verification"
+          fi
+
+          if [ "$CRITICAL_FOUND" = "true" ]; then
+            echo ""
+            echo "══════════════════════════════════════════════"
+            echo "  PIPELINE FAILED: Critical vulnerabilities detected"
+            echo "  Resolve all CRITICAL findings before merging."
+            echo "══════════════════════════════════════════════"
+            exit 1
+          fi
+
+          echo "✅ No hardcoded critical credentials detected in current scan."

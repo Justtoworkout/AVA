@@ -1,0 +1,16 @@
+{
+  "name": "ava-load-tests",
+  "version": "1.0.0",
+  "description": "k6 load test scripts and report generator for AVA backend",
+  "scripts": {
+    "baseline":        "k6 run load-tests/baseline-load-test.js",
+    "baseline:report": "k6 run --out json=load-tests/results/baseline-results.json load-tests/baseline-load-test.js",
+    "stress":          "k6 run -e SCENARIO=stress load-tests/stress-test.js",
+    "spike":           "k6 run -e SCENARIO=spike  load-tests/stress-test.js",
+    "soak":            "k6 run -e SCENARIO=soak   load-tests/stress-test.js",
+    "report":          "node load-tests/generate-report.js"
+  },
+  "dependencies": {
+    "xlsx": "^0.18.5"
+  }
+}

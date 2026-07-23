@@ -1,0 +1,12 @@
+{
+  "name": "ava-appium-tests",
+  "version": "1.0.0",
+  "description": "E2E Appium tests and test cases generation script for AVA app",
+  "main": "generate-excel.js",
+  "scripts": {
+    "generate-excel": "node generate-excel.js"
+  },
+  "dependencies": {
+    "xlsx": "^0.18.5"
+  }
+}

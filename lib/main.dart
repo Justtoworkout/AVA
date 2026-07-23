@@ -5,11 +5,9 @@ import 'package:flutter/services.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'theme/app_theme.dart';
-import 'services/notification_service.dart';
 import 'screens/dashboard_screen.dart';
 import 'screens/appointments_screen.dart';
 import 'screens/calls_screen.dart';
-import 'screens/alerts_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -22,7 +20,6 @@ void main() async {
     statusBarIconBrightness: Brightness.light,
   ));
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  await NotificationService().init();
   runApp(const AvaApp());
 }
 
@@ -54,7 +51,6 @@ class _MainShellState extends State<MainShell> {
     DashboardScreen(),
     AppointmentsScreen(),
     CallsScreen(),
-    AlertsScreen(),
   ];
 
   static const List<_NavItem> _navItems = [
@@ -72,11 +68,6 @@ class _MainShellState extends State<MainShell> {
       icon: Icons.phone_outlined,
       activeIcon: Icons.phone_rounded,
       label: 'Calls',
-    ),
-    _NavItem(
-      icon: Icons.notifications_none_rounded,
-      activeIcon: Icons.notifications_rounded,
-      label: 'Alerts',
     ),
   ];
 

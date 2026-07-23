@@ -24,4 +24,27 @@ backend/.firebase/
 
 # OS
 .DS_Store
-Thumbs.db
+Thumb.db
+
+# Node modules (all test directories)
+node_modules/
+selenium-tests/node_modules/
+appium-tests/node_modules/
+load-tests/node_modules/
+load-tests/results/
+Vulnerability Test Results/node_modules/
+
+# Generated Excel and JSON report output
+selenium-tests/test_cases.xlsx
+appium-tests/appium_test_cases.xlsx
+Vulnerability Test Results/findings.xlsx
+Vulnerability Test Results/package.json
+Vulnerability Test Results/package-lock.json
+load-tests/results/
+appium-tests/package-lock.json
+selenium-tests/package-lock.json
+load-tests/package-lock.json
+audit-backend.json
+audit-functions.json
+gitleaks-report.json
+semgrep-results.json

@@ -1,0 +1,14 @@
+{
+  "name": "ava-selenium-tests",
+  "version": "1.0.0",
+  "description": "E2E Selenium tests and test cases generation script for AVA app",
+  "main": "tests/login-tests.js",
+  "scripts": {
+    "test": "mocha tests/login-tests.js",
+    "generate-excel": "node generate-excel.js"
+  },
+  "dependencies": {
+    "selenium-webdriver": "^4.22.0",
+    "xlsx": "^0.18.5"
+  }
+}
