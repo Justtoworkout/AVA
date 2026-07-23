@@ -31,18 +31,19 @@ class CallListTile extends StatelessWidget {
     return InkWell(
       key: ValueKey('call_tile_${call.id}'),
       onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: BorderRadius.circular(12),
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         decoration: BoxDecoration(
           color: AppTheme.surface,
-          borderRadius: BorderRadius.circular(8), // Clean hairline corners
-          border: Border.all(color: AppTheme.line, width: 1),
+          borderRadius: BorderRadius.circular(12), // Clean modern curves
+          boxShadow: AppTheme.cardShadow,          // High-end soft shadows
+          border: Border.all(color: AppTheme.line.withValues(alpha: 0.5), width: 1),
         ),
         child: Row(
           children: [
-            // Left margin line decoration using the outcome color to give structure without generic AI icons
+            // Left margin line decoration using the outcome color
             Container(
               width: 3,
               height: 36,
@@ -65,7 +66,6 @@ class CallListTile extends StatelessWidget {
                           color: AppTheme.textPrimary,
                           fontSize: 14,
                           fontWeight: FontWeight.w700,
-                          fontFamily: 'Inter',
                         ),
                       ),
                       const Spacer(),
@@ -83,7 +83,6 @@ class CallListTile extends StatelessWidget {
                         style: const TextStyle(
                           color: AppTheme.textMuted,
                           fontSize: 11,
-                          fontFamily: 'Inter',
                         ),
                       ),
                       if (showDuration) ...[
@@ -96,7 +95,6 @@ class CallListTile extends StatelessWidget {
                           style: const TextStyle(
                             color: AppTheme.textMuted,
                             fontSize: 11,
-                            fontFamily: 'Inter',
                           ),
                         ),
                       ],
@@ -111,7 +109,6 @@ class CallListTile extends StatelessWidget {
                       style: const TextStyle(
                         color: AppTheme.textSecondary,
                         fontSize: 12,
-                        fontFamily: 'Inter',
                       ),
                     ),
                   ],

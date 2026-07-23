@@ -48,7 +48,7 @@ class _CallsScreenState extends State<CallsScreen> {
           ),
         ],
         bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(52),
+          preferredSize: const Size.fromHeight(56),
           child: _FilterBar(
             selected: _filter,
             filters: _filters,
@@ -106,45 +106,50 @@ class _FilterBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 52,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        itemCount: filters.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 8),
-        itemBuilder: (_, i) {
-          final (key, label) = filters[i];
+    return Container(
+      height: 40,
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.all(3),
+      decoration: BoxDecoration(
+        color: AppTheme.surfaceElevated, // Slate 100 capsule
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        children: filters.map((item) {
+          final (key, label) = item;
           final isSelected = selected == key;
-          return GestureDetector(
-            key: ValueKey('filter_$key'),
-            onTap: () => onChanged(key),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-              decoration: BoxDecoration(
-                color: isSelected
-                    ? AppTheme.accent
-                    : AppTheme.surface,
-                borderRadius: BorderRadius.circular(6), // Clean flat corners
-                border: Border.all(
-                  color: isSelected ? AppTheme.accent : AppTheme.line,
-                  width: 1,
+          return Expanded(
+            child: GestureDetector(
+              key: ValueKey('filter_$key'),
+              onTap: () => onChanged(key),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 150),
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: isSelected ? AppTheme.surface : Colors.transparent, // Slides out
+                  borderRadius: BorderRadius.circular(6),
+                  boxShadow: isSelected
+                      ? [
+                          BoxShadow(
+                            color: const Color(0xFF0F172A).withValues(alpha: 0.05),
+                            blurRadius: 4,
+                            offset: const Offset(0, 2),
+                          )
+                        ]
+                      : null,
                 ),
-              ),
-              child: Text(
-                label,
-                style: TextStyle(
-                  color: isSelected ? Colors.white : AppTheme.textSecondary,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  fontFamily: 'Inter',
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    color: isSelected ? AppTheme.ink : AppTheme.textSecondary,
+                    fontSize: 11,
+                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+                  ),
                 ),
               ),
             ),
           );
-        },
+        }).toList(),
       ),
     );
   }
@@ -161,13 +166,13 @@ class _ShimmerList extends StatelessWidget {
       itemBuilder: (_, __) => Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
         child: Shimmer.fromColors(
-          baseColor: AppTheme.surfaceCard,
+          baseColor: AppTheme.surface,
           highlightColor: AppTheme.surfaceElevated,
           child: Container(
             height: 80,
             decoration: BoxDecoration(
-              color: AppTheme.surfaceCard,
-              borderRadius: BorderRadius.circular(16),
+              color: AppTheme.surface,
+              borderRadius: BorderRadius.circular(12),
             ),
           ),
         ),

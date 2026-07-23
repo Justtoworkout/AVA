@@ -32,8 +32,8 @@ class OutcomeBadge extends StatelessWidget {
       ),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.06),
-        borderRadius: BorderRadius.circular(4), // Clean flat corners instead of fully pill-rounded
-        border: Border.all(color: color.withValues(alpha: 0.3), width: 1),
+        borderRadius: BorderRadius.circular(6), // Friendly rounded corners
+        border: Border.all(color: color.withValues(alpha: 0.2), width: 1),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -50,7 +50,6 @@ class OutcomeBadge extends StatelessWidget {
               color: color,
               fontSize: compact ? 9 : 10,
               fontWeight: FontWeight.w600,
-              fontFamily: 'Inter',
             ),
           ),
         ],
