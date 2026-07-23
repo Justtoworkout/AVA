@@ -5,14 +5,18 @@ import 'package:intl/intl.dart';
 import '../models/appointment.dart';
 import '../theme/app_theme.dart';
 
+import 'appointment_detail_sheet.dart';
+
 class AppointmentCard extends StatelessWidget {
   final Appointment appt;
   final bool isToday;
+  final VoidCallback? onTap;
 
   const AppointmentCard({
     super.key,
     required this.appt,
     this.isToday = false,
+    this.onTap,
   });
 
   @override
@@ -35,7 +39,13 @@ class AppointmentCard extends StatelessWidget {
               : AppTheme.border,
         ),
       ),
-      child: IntrinsicHeight(
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(16),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap ?? () => AppointmentDetailSheet.show(context, appt),
+          child: IntrinsicHeight(
         child: Row(
           children: [
             // Left time strip
@@ -192,6 +202,8 @@ class AppointmentCard extends StatelessWidget {
           ],
         ),
       ),
-    );
+    ),
+  ),
+);
   }
 }
