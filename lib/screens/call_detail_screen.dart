@@ -105,17 +105,11 @@ class _CallDetailScreenState extends State<CallDetailScreen> {
                 Row(
                   children: [
                     Container(
-                      width: 48,
-                      height: 48,
+                      width: 4,
+                      height: 40,
                       decoration: BoxDecoration(
-                        color: AppTheme.outcomeColor(call.outcome)
-                            .withValues(alpha: 0.12),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(
-                        Icons.person_rounded,
                         color: AppTheme.outcomeColor(call.outcome),
-                        size: 24,
+                        borderRadius: BorderRadius.circular(2),
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -152,11 +146,12 @@ class _CallDetailScreenState extends State<CallDetailScreen> {
                   label: 'Time',
                   value: DateFormat('h:mm a').format(call.timestamp),
                 ),
-                _MetaRow(
-                  icon: Icons.timer_rounded,
-                  label: 'Duration',
-                  value: _formatCallDuration(call.durationSeconds),
-                ),
+                if (call.durationSeconds > 0)
+                  _MetaRow(
+                    icon: Icons.timer_rounded,
+                    label: 'Duration',
+                    value: _formatCallDuration(call.durationSeconds),
+                  ),
               ],
             ),
           ),

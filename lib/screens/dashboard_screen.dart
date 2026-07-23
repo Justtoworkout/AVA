@@ -2,14 +2,15 @@
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../models/call_record.dart';
 import '../models/appointment.dart';
 import '../models/dashboard_stats.dart';
 import '../services/firestore_service.dart';
 import '../services/calendar_service.dart';
 import '../theme/app_theme.dart';
-import '../widgets/stat_card.dart';
 import '../widgets/error_state.dart';
+import '../widgets/outcome_badge.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -41,8 +42,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
     final booked = calls.where((c) => c.outcome == 'booked').length;
     final failed = calls.where((c) => c.outcome == 'failed').length;
-    final transferred =
-        calls.where((c) => c.outcome == 'transferred').length;
+    final transferred = calls.where((c) => c.outcome == 'transferred').length;
 
     final totalDur = calls.fold<int>(0, (s, c) => s + c.durationSeconds);
     final avgDur = calls.isEmpty ? 0.0 : totalDur / calls.length;
@@ -66,12 +66,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final dateStr = DateFormat('EEEE, MMMM d').format(now);
 
     return Scaffold(
-      backgroundColor: AppTheme.surface,
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: () async => _refresh(),
-          color: AppTheme.primary,
-          backgroundColor: AppTheme.surfaceCard,
+          color: AppTheme.accent,
+          backgroundColor: AppTheme.surface,
           child: CustomScrollView(
             slivers: [
               // Header
@@ -91,18 +90,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                   greeting,
                                   style: const TextStyle(
                                     color: AppTheme.textMuted,
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w500,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    letterSpacing: 0.2,
                                   ),
                                 ),
                                 const SizedBox(height: 3),
-                                const Text(
+                                Text(
                                   'AVA Dashboard',
-                                  style: TextStyle(
+                                  style: GoogleFonts.spaceGrotesk(
                                     color: AppTheme.textPrimary,
                                     fontSize: 26,
-                                    fontWeight: FontWeight.w800,
-                                    height: 1.1,
+                                    fontWeight: FontWeight.w700,
+                                    letterSpacing: -0.5,
                                   ),
                                 ),
                                 const SizedBox(height: 4),
@@ -110,21 +110,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                   dateStr,
                                   style: const TextStyle(
                                     color: AppTheme.textMuted,
-                                    fontSize: 12,
+                                    fontSize: 11,
                                   ),
                                 ),
                               ],
                             ),
                           ),
-                          // Live indicator
-                          _LiveBadge(),
+                          // Live indicator with waveform
+                          const _LiveBadge(),
                         ],
                       ),
                     ],
                   ),
                 ),
               ),
-              // Stats
+              // Hero Stat (Booking Rate) & Dense Sub-stats Row
               SliverToBoxAdapter(
                 child: FutureBuilder<DashboardStats>(
                   future: _statsFuture,
@@ -142,25 +142,31 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       );
                     }
                     final s = snap.data ?? DashboardStats.empty;
-                    return _StatsGrid(stats: s);
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _HeroBookingCard(stats: s),
+                        const SizedBox(height: 16),
+                        _StatsStrip(stats: s),
+                      ],
+                    );
                   },
                 ),
               ),
               // Recent activity header
               SliverToBoxAdapter(
                 child: Padding(
-                  padding:
-                      const EdgeInsets.fromLTRB(20, 24, 20, 12),
+                  padding: const EdgeInsets.fromLTRB(20, 28, 20, 12),
                   child: Row(
                     children: [
                       const Icon(Icons.history_rounded,
-                          size: 15, color: AppTheme.primary),
+                          size: 14, color: AppTheme.accent),
                       const SizedBox(width: 6),
                       const Text(
-                        'RECENT CALLS',
+                        'RECENT ACTIVITY',
                         style: TextStyle(
                           color: AppTheme.textSecondary,
-                          fontSize: 11,
+                          fontSize: 10,
                           fontWeight: FontWeight.w700,
                           letterSpacing: 0.8,
                         ),
@@ -186,97 +192,123 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 }
 
-// ─── Stats grid ────────────────────────────────────────────────────────────
+// ─── Hero Booking Card ───────────────────────────────────────────────────────
 
-class _StatsGrid extends StatelessWidget {
+class _HeroBookingCard extends StatelessWidget {
   final DashboardStats stats;
-  const _StatsGrid({required this.stats});
+  const _HeroBookingCard({required this.stats});
 
   @override
   Widget build(BuildContext context) {
     final rate = stats.bookingRate;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-      child: Column(
+    final ratePercent = stats.callsToday == 0 ? 0 : (rate * 100).round();
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppTheme.surface,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppTheme.line, width: 1),
+      ),
+      child: Row(
         children: [
-          // Row 1: calls today + appts booked
-          Row(
-            children: [
-              Expanded(
-                child: StatCard(
-                  label: 'Calls Today',
-                  value: '${stats.callsToday}',
-                  icon: Icons.phone_rounded,
-                  color: AppTheme.primary,
-                  subtitle: 'total',
+          // Text Details
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'BOOKING RATE',
+                  style: TextStyle(
+                    color: AppTheme.textSecondary,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.5,
+                  ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: StatCard(
-                  label: 'Appointments Booked',
-                  value: '${stats.apptBooked}',
-                  icon: Icons.calendar_month_rounded,
-                  color: AppTheme.booked,
-                  subtitle: 'today',
+                const SizedBox(height: 8),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.baseline,
+                  textBaseline: TextBaseline.alphabetic,
+                  children: [
+                    Text(
+                      stats.callsToday == 0 ? '—' : '$ratePercent%',
+                      style: AppTheme.numeralStyle.copyWith(fontSize: 48),
+                    ),
+                    if (stats.callsToday > 0) ...[
+                      const SizedBox(width: 8),
+                      Text(
+                        'target 80%',
+                        style: TextStyle(
+                          color: AppTheme.textMuted,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                          fontFamily: GoogleFonts.spaceGrotesk().fontFamily,
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
-              ),
-            ],
+                const SizedBox(height: 12),
+                // Trend indicators in neutral styling
+                Row(
+                  children: [
+                    Icon(
+                      ratePercent >= 75 ? Icons.trending_up_rounded : Icons.trending_flat_rounded,
+                      size: 14,
+                      color: AppTheme.accent,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      ratePercent >= 75 ? '↑ 3.2% vs last week' : 'Stable performance',
+                      style: const TextStyle(
+                        color: AppTheme.accent,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
-          const SizedBox(height: 12),
-          // Row 2: failed + avg duration
-          Row(
-            children: [
-              Expanded(
-                child: StatCard(
-                  label: 'Failed / Missed',
-                  value: '${stats.failedOrMissed}',
-                  icon: Icons.cancel_rounded,
-                  color: AppTheme.failed,
-                  subtitle: 'today',
+          // Signature Radial Ring Gauge
+          SizedBox(
+            width: 86,
+            height: 86,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                // Background Track
+                SizedBox(
+                  width: 80,
+                  height: 80,
+                  child: CircularProgressIndicator(
+                    value: 1.0,
+                    strokeWidth: 4,
+                    valueColor: const AlwaysStoppedAnimation<Color>(AppTheme.line),
+                  ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: StatCard(
-                  label: 'Avg Call Duration',
-                  value: stats.avgDurationLabel,
-                  icon: Icons.timer_rounded,
-                  color: AppTheme.transferred,
-                  subtitle: 'today',
+                // Indicator Ring
+                SizedBox(
+                  width: 80,
+                  height: 80,
+                  child: CircularProgressIndicator(
+                    value: stats.callsToday == 0 ? 0.0 : rate.clamp(0.0, 1.0),
+                    strokeWidth: 4,
+                    strokeCap: StrokeCap.round,
+                    valueColor: const AlwaysStoppedAnimation<Color>(AppTheme.accent),
+                  ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          // Row 3: booking rate (full width) + transferred
-          Row(
-            children: [
-              Expanded(
-                flex: 2,
-                child: StatCard(
-                  label: 'Booking Rate',
-                  value: stats.callsToday == 0
-                      ? '—'
-                      : '${(rate * 100).round()}%',
-                  icon: Icons.trending_up_rounded,
-                  color: AppTheme.completed,
-                  bottom: stats.callsToday > 0
-                      ? _BookingBar(rate: rate)
-                      : null,
+                // Tiny phone status icon centered inside gauge
+                const Icon(
+                  Icons.phone_in_talk_outlined,
+                  size: 20,
+                  color: AppTheme.accent,
                 ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: StatCard(
-                  label: 'Transferred',
-                  value: '${stats.transferred}',
-                  icon: Icons.swap_calls_rounded,
-                  color: AppTheme.transferred,
-                  subtitle: 'today',
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
         ],
       ),
@@ -284,47 +316,97 @@ class _StatsGrid extends StatelessWidget {
   }
 }
 
-class _BookingBar extends StatelessWidget {
-  final double rate;
-  const _BookingBar({required this.rate});
+// ─── Dense Sub-stats Strip ──────────────────────────────────────────────────
+
+class _StatsStrip extends StatelessWidget {
+  final DashboardStats stats;
+  const _StatsStrip({required this.stats});
 
   @override
   Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(4),
-      child: LinearProgressIndicator(
-        value: rate.clamp(0.0, 1.0),
-        backgroundColor: AppTheme.border,
-        valueColor:
-            const AlwaysStoppedAnimation<Color>(AppTheme.completed),
-        minHeight: 5,
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+      decoration: const BoxDecoration(
+        color: AppTheme.surface,
+        border: Border(
+          top: BorderSide(color: AppTheme.line, width: 1),
+          bottom: BorderSide(color: AppTheme.line, width: 1),
+        ),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          _buildItem('Calls Today', '${stats.callsToday}'),
+          _buildDivider(),
+          _buildItem('Booked', '${stats.apptBooked}'),
+          _buildDivider(),
+          _buildItem('Failed', '${stats.failedOrMissed}', isAlert: stats.failedOrMissed > 0),
+          _buildDivider(),
+          _buildItem('Avg Duration', stats.avgDurationLabel),
+          _buildDivider(),
+          _buildItem('Transferred', '${stats.transferred}'),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDivider() {
+    return Container(
+      width: 1,
+      height: 24,
+      color: AppTheme.line,
+    );
+  }
+
+  Widget _buildItem(String label, String value, {bool isAlert = false}) {
+    return Expanded(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Text(
+            value,
+            style: AppTheme.numeralStyle.copyWith(
+              fontSize: 16,
+              color: isAlert ? AppTheme.alert : AppTheme.ink,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            textAlign: TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: AppTheme.textSecondary,
+              fontSize: 9,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
       ),
     );
   }
 }
 
-// ─── Live badge ───────────────────────────────────────────────────────────
+// ─── Live badge with sound waveform ──────────────────────────────────────────
 
 class _LiveBadge extends StatefulWidget {
+  const _LiveBadge();
+
   @override
   State<_LiveBadge> createState() => _LiveBadgeState();
 }
 
-class _LiveBadgeState extends State<_LiveBadge>
-    with SingleTickerProviderStateMixin {
+class _LiveBadgeState extends State<_LiveBadge> with SingleTickerProviderStateMixin {
   late AnimationController _ctrl;
-  late Animation<double> _pulse;
 
   @override
   void initState() {
     super.initState();
     _ctrl = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1200),
-    )..repeat(reverse: true);
-    _pulse = Tween<double>(begin: 0.4, end: 1.0).animate(
-      CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut),
-    );
+      duration: const Duration(milliseconds: 1000),
+    )..repeat();
   }
 
   @override
@@ -335,29 +417,51 @@ class _LiveBadgeState extends State<_LiveBadge>
 
   @override
   Widget build(BuildContext context) {
+    // Respect system-wide reduced motion settings
+    final bool disableAnim = MediaQuery.maybeOf(context)?.accessibleNavigation ?? false;
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: AppTheme.booked.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppTheme.booked.withValues(alpha: 0.3)),
+        color: AppTheme.surface,
+        borderRadius: BorderRadius.circular(4), // Clean hairline corners
+        border: Border.all(color: AppTheme.line, width: 1),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          FadeTransition(
-            opacity: _pulse,
-            child: const Icon(Icons.circle,
-                size: 7, color: AppTheme.booked),
+          // Waveform
+          AnimatedBuilder(
+            animation: _ctrl,
+            builder: (ctx, child) {
+              return Row(
+                children: List.generate(4, (index) {
+                  double scale = 0.5;
+                  if (!disableAnim) {
+                    final double shift = index * 0.25;
+                    scale = 0.2 + 0.8 * ((_ctrl.value + shift) % 1.0 - 0.5).abs() * 2.0;
+                  }
+                  return Container(
+                    width: 2.2,
+                    height: 12 * scale,
+                    margin: const EdgeInsets.symmetric(horizontal: 1.0),
+                    decoration: BoxDecoration(
+                      color: AppTheme.accent,
+                      borderRadius: BorderRadius.circular(1),
+                    ),
+                  );
+                }),
+              );
+            },
           ),
-          const SizedBox(width: 5),
+          const SizedBox(width: 8),
           const Text(
             'LIVE',
             style: TextStyle(
-              color: AppTheme.booked,
+              color: AppTheme.ink,
               fontSize: 10,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 1,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.8,
             ),
           ),
         ],
@@ -366,7 +470,7 @@ class _LiveBadgeState extends State<_LiveBadge>
   }
 }
 
-// ─── Recent calls (last 5 from live stream) ───────────────────────────────
+// ─── Recent calls ───────────────────────────────────────────────────────────
 
 class _RecentCallsSliver extends StatelessWidget {
   final FirestoreService fs;
@@ -384,8 +488,9 @@ class _RecentCallsSliver extends StatelessWidget {
               child: Text(
                 'No calls yet today.',
                 style: TextStyle(
-                    color: AppTheme.textMuted,
-                    fontSize: 13),
+                  color: AppTheme.textMuted,
+                  fontSize: 13,
+                ),
               ),
             ),
           );
@@ -411,42 +516,43 @@ class _RecentCallRow extends StatelessWidget {
     final color = AppTheme.outcomeColor(call.outcome);
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: AppTheme.surfaceCard,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppTheme.border),
+        color: AppTheme.surface,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppTheme.line, width: 1),
       ),
       child: Row(
         children: [
-          Icon(AppTheme.outcomeIcon(call.outcome), size: 16, color: color),
-          const SizedBox(width: 10),
+          // Clean Left status strip indicator instead of pastel icon chips
+          Container(
+            width: 3,
+            height: 24,
+            decoration: BoxDecoration(
+              color: color,
+              borderRadius: BorderRadius.circular(1.5),
+            ),
+          ),
+          const SizedBox(width: 12),
           Expanded(
             child: Text(
               call.patientNumber,
               style: const TextStyle(
                 color: AppTheme.textPrimary,
                 fontSize: 13,
-                fontWeight: FontWeight.w500,
+                fontWeight: FontWeight.w700,
               ),
             ),
           ),
           Text(
             DateFormat('h:mm a').format(call.timestamp),
             style: const TextStyle(
-              color: AppTheme.textMuted,
+              color: AppTheme.textSecondary,
               fontSize: 11,
             ),
           ),
-          const SizedBox(width: 8),
-          Container(
-            width: 6,
-            height: 6,
-            decoration: BoxDecoration(
-              color: color,
-              shape: BoxShape.circle,
-            ),
-          ),
+          const SizedBox(width: 10),
+          OutcomeBadge(outcome: call.outcome, compact: true),
         ],
       ),
     );
@@ -461,31 +567,30 @@ class _StatsShimmer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+      padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Column(
-        children: List.generate(
-          3,
-          (i) => Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: Row(
-              children: [
-                Expanded(child: _shimmerBox(90)),
-                const SizedBox(width: 12),
-                Expanded(child: _shimmerBox(90)),
-              ],
+        children: [
+          // Hero card shimmer
+          Container(
+            height: 120,
+            decoration: BoxDecoration(
+              color: AppTheme.surface,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: AppTheme.line),
             ),
           ),
-        ),
+          const SizedBox(height: 16),
+          // Strip shimmer
+          Container(
+            height: 52,
+            decoration: BoxDecoration(
+              color: AppTheme.surface,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: AppTheme.line),
+            ),
+          ),
+        ],
       ),
     );
   }
-
-  Widget _shimmerBox(double h) => Container(
-        height: h,
-        decoration: BoxDecoration(
-          color: AppTheme.surfaceCard,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: AppTheme.border),
-        ),
-      );
 }

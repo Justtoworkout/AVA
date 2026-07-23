@@ -26,32 +26,29 @@ class CallListTile extends StatelessWidget {
         ? 'Today'
         : DateFormat('MMM d').format(call.timestamp);
 
+    final showDuration = call.durationSeconds > 0;
+
     return InkWell(
       key: ValueKey('call_tile_${call.id}'),
       onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(8),
       child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
-        padding: const EdgeInsets.all(14),
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         decoration: BoxDecoration(
-          color: AppTheme.surfaceCard,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppTheme.border),
+          color: AppTheme.surface,
+          borderRadius: BorderRadius.circular(8), // Clean hairline corners
+          border: Border.all(color: AppTheme.line, width: 1),
         ),
         child: Row(
           children: [
-            // Avatar circle with outcome color
+            // Left margin line decoration using the outcome color to give structure without generic AI icons
             Container(
-              width: 44,
-              height: 44,
+              width: 3,
+              height: 36,
               decoration: BoxDecoration(
-                color: AppTheme.outcomeColor(call.outcome).withValues(alpha: 0.12),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                Icons.phone_rounded,
                 color: AppTheme.outcomeColor(call.outcome),
-                size: 20,
+                borderRadius: BorderRadius.circular(2),
               ),
             ),
             const SizedBox(width: 12),
@@ -67,7 +64,7 @@ class CallListTile extends StatelessWidget {
                         style: const TextStyle(
                           color: AppTheme.textPrimary,
                           fontSize: 14,
-                          fontWeight: FontWeight.w600,
+                          fontWeight: FontWeight.w700,
                           fontFamily: 'Inter',
                         ),
                       ),
@@ -75,7 +72,7 @@ class CallListTile extends StatelessWidget {
                       OutcomeBadge(outcome: call.outcome, compact: true),
                     ],
                   ),
-                  const SizedBox(height: 5),
+                  const SizedBox(height: 4),
                   Row(
                     children: [
                       const Icon(Icons.access_time_rounded,
@@ -89,22 +86,24 @@ class CallListTile extends StatelessWidget {
                           fontFamily: 'Inter',
                         ),
                       ),
-                      const SizedBox(width: 8),
-                      const Icon(Icons.timer_outlined,
-                          size: 11, color: AppTheme.textMuted),
-                      const SizedBox(width: 3),
-                      Text(
-                        _formatDuration(call.durationSeconds),
-                        style: const TextStyle(
-                          color: AppTheme.textMuted,
-                          fontSize: 11,
-                          fontFamily: 'Inter',
+                      if (showDuration) ...[
+                        const SizedBox(width: 8),
+                        const Icon(Icons.timer_outlined,
+                            size: 11, color: AppTheme.textMuted),
+                        const SizedBox(width: 3),
+                        Text(
+                          _formatDuration(call.durationSeconds),
+                          style: const TextStyle(
+                            color: AppTheme.textMuted,
+                            fontSize: 11,
+                            fontFamily: 'Inter',
+                          ),
                         ),
-                      ),
+                      ],
                     ],
                   ),
                   if (call.summary != null && call.summary!.isNotEmpty) ...[
-                    const SizedBox(height: 5),
+                    const SizedBox(height: 6),
                     Text(
                       call.summary!,
                       maxLines: 1,

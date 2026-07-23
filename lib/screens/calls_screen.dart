@@ -125,17 +125,18 @@ class _FilterBar extends StatelessWidget {
                   const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
               decoration: BoxDecoration(
                 color: isSelected
-                    ? AppTheme.primary.withValues(alpha: 0.18)
-                    : AppTheme.surfaceElevated,
-                borderRadius: BorderRadius.circular(20),
+                    ? AppTheme.accent
+                    : AppTheme.surface,
+                borderRadius: BorderRadius.circular(6), // Clean flat corners
                 border: Border.all(
-                  color: isSelected ? AppTheme.primary : AppTheme.border,
+                  color: isSelected ? AppTheme.accent : AppTheme.line,
+                  width: 1,
                 ),
               ),
               child: Text(
                 label,
                 style: TextStyle(
-                  color: isSelected ? AppTheme.primary : AppTheme.textMuted,
+                  color: isSelected ? Colors.white : AppTheme.textSecondary,
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
                   fontFamily: 'Inter',
