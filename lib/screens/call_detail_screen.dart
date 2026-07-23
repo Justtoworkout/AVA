@@ -86,7 +86,7 @@ class _CallDetailScreenState extends State<CallDetailScreen> {
   Widget build(BuildContext context) {
     final call = widget.call;
     return Scaffold(
-      backgroundColor: AppTheme.surface,
+      backgroundColor: AppTheme.paper,
       appBar: AppBar(
         title: Text(call.patientNumber),
         leading: IconButton(

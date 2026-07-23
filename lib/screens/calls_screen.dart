@@ -36,7 +36,7 @@ class _CallsScreenState extends State<CallsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.surface,
+      backgroundColor: AppTheme.paper,
       appBar: AppBar(
         title: const Text('Calls'),
         actions: [
