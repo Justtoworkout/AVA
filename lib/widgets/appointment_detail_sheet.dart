@@ -23,8 +23,30 @@ class AppointmentDetailSheet extends StatelessWidget {
     );
   }
 
+  /// Helper to extract patient name and service type from title if formatted like "Dental appointment for Kevin"
+  Map<String, String> _parseTitle(String rawTitle) {
+    final lower = rawTitle.trim();
+    if (lower.toLowerCase().contains(' for ')) {
+      final parts = lower.split(RegExp(r'\s+for\s+', caseSensitive: false));
+      if (parts.length >= 2) {
+        return {
+          'service': parts[0].trim(),
+          'patient': parts.sublist(1).join(' for ').trim(),
+        };
+      }
+    }
+    return {
+      'service': rawTitle,
+      'patient': 'Patient',
+    };
+  }
+
   @override
   Widget build(BuildContext context) {
+    final parsed = _parseTitle(appt.title);
+    final patientName = parsed['patient']!;
+    final serviceType = parsed['service']!;
+
     final dateStr = DateFormat('EEEE, MMMM d, yyyy').format(appt.start);
     final timeStr = appt.isAllDay
         ? 'All day event'
@@ -32,7 +54,7 @@ class AppointmentDetailSheet extends StatelessWidget {
 
     return Container(
       constraints: BoxConstraints(
-        maxHeight: MediaQuery.of(context).size.height * 0.85,
+        maxHeight: MediaQuery.of(context).size.height * 0.88,
       ),
       decoration: const BoxDecoration(
         color: AppTheme.surfaceCard,
@@ -63,11 +85,21 @@ class AppointmentDetailSheet extends StatelessWidget {
               ),
               const SizedBox(height: 16),
 
-              // Header Row with Status Badge & Close Button
+              // Header Row
               Row(
                 children: [
+                  const Text(
+                    'Appointment Details',
+                    style: TextStyle(
+                      color: AppTheme.textPrimary,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const Spacer(),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
                       color: AppTheme.booked.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(20),
@@ -80,15 +112,15 @@ class AppointmentDetailSheet extends StatelessWidget {
                       children: [
                         const Icon(
                           Icons.check_circle_rounded,
-                          size: 14,
+                          size: 13,
                           color: AppTheme.booked,
                         ),
-                        const SizedBox(width: 6),
+                        const SizedBox(width: 5),
                         Text(
                           appt.status.toUpperCase(),
                           style: const TextStyle(
                             color: AppTheme.booked,
-                            fontSize: 11,
+                            fontSize: 10,
                             fontWeight: FontWeight.w700,
                             letterSpacing: 0.5,
                           ),
@@ -96,7 +128,7 @@ class AppointmentDetailSheet extends StatelessWidget {
                       ],
                     ),
                   ),
-                  const Spacer(),
+                  const SizedBox(width: 8),
                   IconButton(
                     icon: const Icon(Icons.close_rounded,
                         color: AppTheme.textSecondary, size: 22),
@@ -106,53 +138,73 @@ class AppointmentDetailSheet extends StatelessWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 20),
 
-              // Title
-              Text(
-                appt.title,
-                style: const TextStyle(
-                  color: AppTheme.textPrimary,
-                  fontSize: 22,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: -0.4,
-                  height: 1.25,
+              // Structured Info Container
+              Container(
+                decoration: BoxDecoration(
+                  color: AppTheme.surfaceElevated.withValues(alpha: 0.5),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: AppTheme.border),
+                ),
+                child: Column(
+                  children: [
+                    // Patient Name
+                    _InfoRow(
+                      icon: Icons.person_rounded,
+                      iconColor: AppTheme.primary,
+                      label: 'Patient Name',
+                      value: patientName,
+                      isFirst: true,
+                    ),
+                    const Divider(height: 1),
+
+                    // Service / Purpose
+                    _InfoRow(
+                      icon: Icons.medical_services_rounded,
+                      iconColor: const Color(0xFF60A5FA),
+                      label: 'Appointment',
+                      value: serviceType,
+                    ),
+                    const Divider(height: 1),
+
+                    // Date
+                    _InfoRow(
+                      icon: Icons.calendar_today_rounded,
+                      iconColor: const Color(0xFFFBBF24),
+                      label: 'Date',
+                      value: dateStr,
+                    ),
+                    const Divider(height: 1),
+
+                    // Time & Duration
+                    _InfoRow(
+                      icon: Icons.access_time_filled_rounded,
+                      iconColor: const Color(0xFF4ADE80),
+                      label: 'Time',
+                      value: '$timeStr (${appt.durationLabel})',
+                    ),
+                    const Divider(height: 1),
+
+                    // Location
+                    _InfoRow(
+                      icon: Icons.location_on_rounded,
+                      iconColor: const Color(0xFFFF7A00),
+                      label: 'Location',
+                      value: (appt.location != null &&
+                              appt.location!.trim().isNotEmpty)
+                          ? appt.location!
+                          : 'Main Hospital Clinic / Desk',
+                      isLast: true,
+                    ),
+                  ],
                 ),
               ),
               const SizedBox(height: 20),
 
-              // Date & Time Card
-              _DetailCard(
-                icon: Icons.calendar_month_rounded,
-                iconColor: AppTheme.primary,
-                title: dateStr,
-                subtitle: '$timeStr (${appt.durationLabel})',
-              ),
-              const SizedBox(height: 12),
-
-              // Location Card (if any)
-              if (appt.location != null && appt.location!.isNotEmpty) ...[
-                _DetailCard(
-                  icon: Icons.location_on_rounded,
-                  iconColor: const Color(0xFFFF7A00),
-                  title: 'Location',
-                  subtitle: appt.location!,
-                ),
-                const SizedBox(height: 12),
-              ],
-
-              // Google Calendar Sync Badge
-              const _DetailCard(
-                icon: Icons.sync_rounded,
-                iconColor: AppTheme.completed,
-                title: 'Google Calendar Sync',
-                subtitle: 'Synced automatically from hospital booking calendar',
-              ),
-              const SizedBox(height: 20),
-
-              // Description / Notes Section
+              // Notes / Description Section
               const Text(
-                'APPOINTMENT NOTES',
+                'NOTES & DETAILS',
                 style: TextStyle(
                   color: AppTheme.textMuted,
                   fontSize: 11,
@@ -165,14 +217,15 @@ class AppointmentDetailSheet extends StatelessWidget {
                 width: double.infinity,
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: AppTheme.surfaceElevated.withValues(alpha: 0.6),
+                  color: AppTheme.surfaceElevated.withValues(alpha: 0.3),
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(color: AppTheme.border),
                 ),
                 child: Text(
-                  (appt.description != null && appt.description!.trim().isNotEmpty)
+                  (appt.description != null &&
+                          appt.description!.trim().isNotEmpty)
                       ? appt.description!
-                      : 'Scheduled via AVA Voice AI Assistant. All patient details and booking preferences have been recorded.',
+                      : 'Booked via AVA Voice AI Companion. Synced directly with Google Calendar.',
                   style: const TextStyle(
                     color: AppTheme.textSecondary,
                     fontSize: 13,
@@ -188,16 +241,18 @@ class AppointmentDetailSheet extends StatelessWidget {
                 child: ElevatedButton.icon(
                   onPressed: () {
                     final text = '''
-Appointment: ${appt.title}
+Patient Name: $patientName
+Appointment: $serviceType
 Date: $dateStr
-Time: $timeStr
-Location: ${appt.location ?? 'N/A'}
-Notes: ${appt.description ?? 'None'}
+Time: $timeStr (${appt.durationLabel})
+Location: ${appt.location ?? 'Main Hospital Clinic'}
+Status: ${appt.status}
 ''';
                     Clipboard.setData(ClipboardData(text: text));
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
-                        content: const Text('Appointment details copied to clipboard'),
+                        content:
+                            const Text('Appointment details copied to clipboard'),
                         backgroundColor: AppTheme.surfaceElevated,
                         behavior: SnackBarBehavior.floating,
                         shape: RoundedRectangleBorder(
@@ -208,7 +263,7 @@ Notes: ${appt.description ?? 'None'}
                     Navigator.of(context).pop();
                   },
                   icon: const Icon(Icons.copy_rounded, size: 18),
-                  label: const Text('Copy Details'),
+                  label: const Text('Copy Appointment Details'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppTheme.primary,
                     foregroundColor: Colors.white,
@@ -228,37 +283,37 @@ Notes: ${appt.description ?? 'None'}
   }
 }
 
-class _DetailCard extends StatelessWidget {
+class _InfoRow extends StatelessWidget {
   final IconData icon;
   final Color iconColor;
-  final String title;
-  final String subtitle;
+  final String label;
+  final String value;
+  final bool isFirst;
+  final bool isLast;
 
-  const _DetailCard({
+  const _InfoRow({
     required this.icon,
     required this.iconColor,
-    required this.title,
-    required this.subtitle,
+    required this.label,
+    required this.value,
+    this.isFirst = false,
+    this.isLast = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppTheme.surfaceElevated.withValues(alpha: 0.4),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppTheme.border.withValues(alpha: 0.6)),
-      ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            padding: const EdgeInsets.all(10),
+            padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
               color: iconColor.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(icon, color: iconColor, size: 20),
+            child: Icon(icon, color: iconColor, size: 18),
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -266,19 +321,21 @@ class _DetailCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  title,
+                  label,
+                  style: const TextStyle(
+                    color: AppTheme.textMuted,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  value,
                   style: const TextStyle(
                     color: AppTheme.textPrimary,
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  subtitle,
-                  style: const TextStyle(
-                    color: AppTheme.textSecondary,
-                    fontSize: 12,
+                    height: 1.3,
                   ),
                 ),
               ],
