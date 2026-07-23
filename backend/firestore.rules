@@ -3,11 +3,10 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     // ── calls collection ───────────────────────────────────────────────────
-    // Only authenticated staff (Firebase Auth users with role=staff) can read.
-    // Only the Admin SDK (Cloud Functions / server) can write — client writes blocked.
+    // Allows public read access for the supervisor dashboard app (which does not implement Firebase Auth).
+    // Restricts writes strictly to the authenticated Firebase Admin SDK (Vapi webhook).
     match /calls/{callId} {
-      allow read: if request.auth != null
-                  && request.auth.token.role == 'staff';
+      allow read: if true;
       allow write: if false; // Admin SDK only
     }
 
