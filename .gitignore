@@ -12,6 +12,8 @@ build/
 google-services.json
 GoogleService-Info.plist
 *-service-account.json
+service-account.json
+*.serviceaccount.json
 
 # Firebase
 backend/functions/node_modules/

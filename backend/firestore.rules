@@ -1,10 +1,19 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // calls collection: app reads, Cloud Function writes
+
+    // ── calls collection ───────────────────────────────────────────────────
+    // Only authenticated staff (Firebase Auth users with role=staff) can read.
+    // Only the Admin SDK (Cloud Functions / server) can write — client writes blocked.
     match /calls/{callId} {
-      allow read: if true;  // tighten in production with staff auth
-      allow write: if false; // only Cloud Function (admin SDK) writes
+      allow read: if request.auth != null
+                  && request.auth.token.role == 'staff';
+      allow write: if false; // Admin SDK only
+    }
+
+    // ── Deny everything else by default ───────────────────────────────────
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }

@@ -2,10 +2,33 @@
 // Phase 1: Vapi end-of-call webhook → Firestore `calls` collection
 
 const functions = require('firebase-functions');
-const admin = require('firebase-admin');
+const admin    = require('firebase-admin');
+const crypto   = require('crypto');
 
 admin.initializeApp();
 const db = admin.firestore();
+
+// ─── Webhook Signature Verification ──────────────────────────────────────────
+function verifySignature(req) {
+  const secret = process.env.VAPI_WEBHOOK_SECRET;
+  if (!secret) return true; // Dev mode: skip if not configured
+
+  const signature = req.headers['x-vapi-signature'] || req.headers['x-vapi-signature-256'];
+  if (!signature) return false;
+
+  try {
+    const computed = crypto
+      .createHmac('sha256', secret)
+      .update(JSON.stringify(req.body))
+      .digest('hex');
+    const sigBuf  = Buffer.from(signature.replace('sha256=', ''), 'hex');
+    const calcBuf = Buffer.from(computed, 'hex');
+    if (sigBuf.length !== calcBuf.length) return false;
+    return crypto.timingSafeEqual(sigBuf, calcBuf);
+  } catch {
+    return false;
+  }
+}
 
 /**
  * POST /vapiWebhook
@@ -26,8 +49,18 @@ exports.vapiWebhook = functions.https.onRequest(async (req, res) => {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
+  // Verify webhook signature
+  if (!verifySignature(req)) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  // Input validation
+  const body = req.body;
+  if (!body || typeof body !== 'object' || typeof (body.message ?? body).type !== 'string') {
+    return res.status(400).json({ error: 'Invalid payload' });
+  }
+
   try {
-    const body = req.body;
 
     // Vapi wraps everything in a `message` envelope
     const msg = body.message ?? body;
@@ -82,7 +115,8 @@ exports.vapiWebhook = functions.https.onRequest(async (req, res) => {
     functions.logger.info('Call record written', { id: docRef.id, outcome });
     return res.status(200).json({ status: 'ok', id: docRef.id });
   } catch (err) {
-    functions.logger.error('vapiWebhook error', err);
+    // Log full error server-side, return generic message to caller (fixes M-001)
+    functions.logger.error('vapiWebhook error', { message: err.message });
     return res.status(500).json({ error: 'Internal server error' });
   }
 });
