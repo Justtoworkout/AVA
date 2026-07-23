@@ -18,8 +18,13 @@ app.use(helmet());
 // 2. Structured request logging (no sensitive body fields logged)
 app.use(morgan('combined'));
 
-// 3. Body parser — limit payload to 1MB to prevent DoS
-app.use(express.json({ limit: '1mb' }));
+// 3. Body parser — limit payload to 1MB and capture raw body buffer for signature checks
+app.use(express.json({
+  limit: '1mb',
+  verify: (req, res, buf) => {
+    req.rawBody = buf;
+  }
+}));
 
 // 4. Rate limiting — max 200 requests per minute per IP
 const limiter = rateLimit({
@@ -79,7 +84,7 @@ function verifyVapiSignature(req, res, next) {
   }
 
   try {
-    const rawBody  = JSON.stringify(req.body);
+    const rawBody = req.rawBody ? req.rawBody.toString('utf8') : JSON.stringify(req.body);
     const computed = crypto
       .createHmac('sha256', secret)
       .update(rawBody)

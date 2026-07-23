@@ -1,5 +1,5 @@
 // backend/api/vapiWebhook.js
-// Vercel serverless function — hardened version using Firebase Admin SDK
+// Vercel serverless function — hardened version using Firebase Admin SDK and raw body verification
 
 const crypto = require('crypto');
 const admin  = require('firebase-admin');
@@ -22,6 +22,20 @@ if (admin.apps.length === 0) {
 
 const db = admin.firestore();
 
+// Helper to read raw request stream body
+function getRawBody(req) {
+  return new Promise((resolve, reject) => {
+    let body = [];
+    req.on('data', (chunk) => {
+      body.push(chunk);
+    }).on('end', () => {
+      resolve(Buffer.concat(body));
+    }).on('error', (err) => {
+      reject(err);
+    });
+  });
+}
+
 // ─── Input validation ─────────────────────────────────────────────────────────
 function validatePayload(body) {
   if (!body || typeof body !== 'object') return false;
@@ -29,48 +43,75 @@ function validatePayload(body) {
   return typeof msg.type === 'string';
 }
 
-// ─── Webhook signature verification ──────────────────────────────────────────
-function verifySignature(req) {
+// ─── Webhook signature verification on RAW request bytes (resolves serialization mismatches) ───
+function verifySignature(rawBody, headers) {
   const secret = process.env.VAPI_WEBHOOK_SECRET;
-  if (!secret) return true; // Skip in dev if not configured
+  if (!secret) {
+    console.warn('[WARN] VAPI_WEBHOOK_SECRET not set — skipping signature check (dev mode)');
+    return true; 
+  }
 
-  const signature = req.headers['x-vapi-signature'] || req.headers['x-vapi-signature-256'];
-  if (!signature) return false;
+  const signature = headers['x-vapi-signature'] || headers['x-vapi-signature-256'];
+  if (!signature) {
+    console.error('[Error] Signature check failed: Missing x-vapi-signature header');
+    return false;
+  }
 
   try {
     const computed = crypto
       .createHmac('sha256', secret)
-      .update(JSON.stringify(req.body))
+      .update(rawBody)
       .digest('hex');
 
     const sigBuffer  = Buffer.from(signature.replace('sha256=', ''), 'hex');
     const calcBuffer = Buffer.from(computed, 'hex');
 
-    if (sigBuffer.length !== calcBuffer.length) return false;
-    return crypto.timingSafeEqual(sigBuffer, calcBuffer);
-  } catch {
+    if (sigBuffer.length !== calcBuffer.length) {
+      console.error('[Error] Signature check failed: Length mismatch');
+      return false;
+    }
+    const verified = crypto.timingSafeEqual(sigBuffer, calcBuffer);
+    if (!verified) {
+      console.error('[Error] Signature check failed: Content mismatch');
+    }
+    return verified;
+  } catch (err) {
+    console.error('[Error] Signature verification exception:', err.message);
     return false;
   }
 }
 
-module.exports = async (req, res) => {
+const handler = async (req, res) => {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  // Signature verification
-  if (!verifySignature(req)) {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
-
-  // Input validation
-  if (!validatePayload(req.body)) {
-    return res.status(400).json({ error: 'Invalid payload' });
-  }
-
   try {
-    const body = req.body || {};
-    const msg  = body.message ?? body;
+    // Read raw body stream
+    const rawBodyBuffer = await getRawBody(req);
+    const rawBody = rawBodyBuffer.toString('utf8');
+
+    // Signature verification on raw payload string bytes
+    if (!verifySignature(rawBody, req.headers)) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    // Parse body manually since Vercel bodyParser is disabled
+    let body = {};
+    if (rawBody) {
+      try {
+        body = JSON.parse(rawBody);
+      } catch (err) {
+        return res.status(400).json({ error: 'Invalid JSON payload' });
+      }
+    }
+
+    // Input validation
+    if (!validatePayload(body)) {
+      return res.status(400).json({ error: 'Invalid payload' });
+    }
+
+    const msg = body.message ?? body;
 
     if (msg.type !== 'end-of-call-report') {
       return res.status(200).json({ status: 'ignored' });
@@ -114,13 +155,12 @@ module.exports = async (req, res) => {
 
     const docId = typeof call.id === 'string' ? call.id : `call_${Date.now()}`;
 
-    // Perform database write using official admin SDK (circumvents 403 Forbidden writes)
+    // Perform database write using official admin SDK
     await db.collection('calls').doc(docId).set(record, { merge: true });
 
     console.log(`[Success] Call record written: ${docId} outcome=${outcome}`);
     return res.status(200).json({ status: 'ok', id: docId, outcome });
   } catch (err) {
-    // Generic message only — no stack trace (fixes M-001)
     console.error('[Error] Webhook exception:', err.message);
     return res.status(500).json({ error: 'Internal server error' });
   }
@@ -150,3 +190,10 @@ function deriveOutcome(analysis, endedReason, summary, transcript, structuredDat
 
   return 'completed';
 }
+
+module.exports = handler;
+module.exports.config = {
+  api: {
+    bodyParser: false, // Disables automatic parsing to allow raw stream verification
+  },
+};
