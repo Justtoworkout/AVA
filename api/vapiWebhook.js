@@ -38,10 +38,17 @@ module.exports = async (req, res) => {
 
     const call = msg.call ?? {};
     const analysis = msg.analysis ?? {};
+    const artifact = msg.artifact ?? {};
+    const summary = msg.summary ?? analysis.summary ?? artifact.summary ?? '';
+    const transcript = msg.transcript ?? artifact.transcript ?? '';
+    const structuredData = msg.structuredData ?? analysis.structuredData ?? artifact.structuredData ?? {};
 
     const outcome = deriveOutcome(
-      analysis.successEvaluation,
-      call.endedReason ?? msg.endedReason
+      analysis,
+      call.endedReason ?? msg.endedReason,
+      summary,
+      transcript,
+      structuredData
     );
     const startedAt = call.startedAt ? new Date(call.startedAt) : null;
     const endedAt = call.endedAt ? new Date(call.endedAt) : new Date();
@@ -60,9 +67,9 @@ module.exports = async (req, res) => {
       timestamp: endedAt,
       durationSeconds,
       outcome,
-      transcript: msg.transcript ?? '',
-      recordingUrl: msg.recordingUrl ?? null,
-      summary: msg.summary ?? null,
+      transcript,
+      recordingUrl: msg.recordingUrl ?? artifact.recordingUrl ?? null,
+      summary: summary || null,
       vapiCallId: call.id ?? null,
     };
 
@@ -87,25 +94,52 @@ module.exports = async (req, res) => {
         .json({ error: `Firestore write failed (${firestoreRes.status}): ${errText}` });
     }
 
-    console.log(`[Success] Call record written: ${docId}`);
-    return res.status(200).json({ status: 'ok', id: docId });
+    console.log(`[Success] Call record written: ${docId} (outcome=${outcome})`);
+    return res.status(200).json({ status: 'ok', id: docId, outcome });
   } catch (err) {
     console.error('[Error] Webhook exception:', err.message);
     return res.status(500).json({ error: err.message });
   }
 };
 
-function deriveOutcome(successEvaluation, endedReason) {
+function deriveOutcome(analysis, endedReason, summary, transcript, structuredData) {
   if (endedReason === 'transfer') return 'transferred';
   if (endedReason === 'pipeline-error' || endedReason === 'error') return 'failed';
-  switch (successEvaluation) {
-    case 'true':
-    case true:
-      return 'booked';
-    case 'false':
-    case false:
-      return 'failed';
-    default:
-      return 'completed';
+
+  const successEval = analysis?.successEvaluation;
+  if (successEval === 'true' || successEval === true || successEval === 'TRUE') {
+    return 'booked';
   }
+  if (successEval === 'false' || successEval === false || successEval === 'FALSE') {
+    return 'failed';
+  }
+
+  // Check structured data if Vapi passes custom structured outputs
+  if (
+    structuredData?.appointmentBooked === true ||
+    structuredData?.booked === true ||
+    structuredData?.status === 'booked'
+  ) {
+    return 'booked';
+  }
+
+  // Fallback: Check summary & transcript text for appointment/booking indicators
+  const text = `${summary || ''} ${transcript || ''}`.toLowerCase();
+  if (
+    text.includes('booked') ||
+    text.includes('appointment scheduled') ||
+    text.includes('appointment booked') ||
+    text.includes('appointment confirmed') ||
+    text.includes('scheduled for') ||
+    text.includes('scheduled an appointment') ||
+    text.includes('schedule an appointment') ||
+    text.includes('book an appointment') ||
+    text.includes('slot confirmed') ||
+    text.includes('dr.') ||
+    text.includes('doctor')
+  ) {
+    return 'booked';
+  }
+
+  return 'completed';
 }
