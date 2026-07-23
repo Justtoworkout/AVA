@@ -1,10 +1,26 @@
 // backend/api/vapiWebhook.js
-// Vercel serverless function — hardened version
+// Vercel serverless function — hardened version using Firebase Admin SDK
 
 const crypto = require('crypto');
+const admin  = require('firebase-admin');
 
-const FIRESTORE_PROJECT_ID = process.env.FIREBASE_PROJECT_ID || 'gamma-86108';
-const FIRESTORE_URL = `https://firestore.googleapis.com/v1/projects/${FIRESTORE_PROJECT_ID}/databases/(default)/documents/calls`;
+// Initialize Firebase Admin once across serverless hot instances
+if (admin.apps.length === 0) {
+  try {
+    if (process.env.FIREBASE_SERVICE_ACCOUNT_JSON) {
+      const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON);
+      admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
+    } else {
+      admin.initializeApp({
+        projectId: process.env.FIREBASE_PROJECT_ID || 'gamma-86108',
+      });
+    }
+  } catch (err) {
+    console.error('Firebase initialization error:', err.message);
+  }
+}
+
+const db = admin.firestore();
 
 // ─── Input validation ─────────────────────────────────────────────────────────
 function validatePayload(body) {
@@ -35,25 +51,6 @@ function verifySignature(req) {
   } catch {
     return false;
   }
-}
-
-function toFV(v) {
-  if (v === null || v === undefined) return { nullValue: null };
-  if (typeof v === 'boolean') return { booleanValue: v };
-  if (typeof v === 'number')
-    return Number.isInteger(v) ? { integerValue: String(v) } : { doubleValue: v };
-  if (v instanceof Date) return { timestampValue: v.toISOString() };
-  if (typeof v === 'string') return { stringValue: v };
-  if (typeof v === 'object') {
-    return {
-      mapValue: {
-        fields: Object.fromEntries(
-          Object.entries(v).map(([k, val]) => [k, toFV(val)])
-        ),
-      },
-    };
-  }
-  return { stringValue: String(v) };
 }
 
 module.exports = async (req, res) => {
@@ -106,7 +103,7 @@ module.exports = async (req, res) => {
 
     const record = {
       patientNumber,
-      timestamp: endedAt,
+      timestamp: admin.firestore.Timestamp.fromDate(endedAt),
       durationSeconds,
       outcome,
       transcript,
@@ -115,23 +112,10 @@ module.exports = async (req, res) => {
       vapiCallId: typeof call.id === 'string' ? call.id : null,
     };
 
-    const docId  = typeof call.id === 'string' ? call.id : `call_${Date.now()}`;
-    const fields = Object.fromEntries(
-      Object.entries(record).map(([k, v]) => [k, toFV(v)])
-    );
+    const docId = typeof call.id === 'string' ? call.id : `call_${Date.now()}`;
 
-    // Use env var for project ID — not hardcoded (fixes M-004)
-    const firestoreRes = await fetch(`${FIRESTORE_URL}/${docId}`, {
-      method:  'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ fields }),
-    });
-
-    if (!firestoreRes.ok) {
-      // Generic error response — no internal details leaked (fixes M-001)
-      console.error('[Error] Firestore write failed:', firestoreRes.status);
-      return res.status(500).json({ error: 'Database write failed' });
-    }
+    // Perform database write using official admin SDK (circumvents 403 Forbidden writes)
+    await db.collection('calls').doc(docId).set(record, { merge: true });
 
     console.log(`[Success] Call record written: ${docId} outcome=${outcome}`);
     return res.status(200).json({ status: 'ok', id: docId, outcome });
