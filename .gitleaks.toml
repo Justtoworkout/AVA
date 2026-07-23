@@ -2,9 +2,10 @@
 # Gitleaks configuration file to allowlist false positives
 
 [allowlist]
-description = "Ignore Firebase client config and test suite files"
+description = "Ignore Firebase client config, Calendar config, and test suite files"
 paths = [
     '''lib/firebase_options\.dart''',
+    '''lib/config/app_config\.dart''',
     '''Vulnerability Test Results/''',
     '''selenium-tests/''',
     '''appium-tests/'''
