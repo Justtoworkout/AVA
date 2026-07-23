@@ -31,7 +31,9 @@ class AvaApp extends StatelessWidget {
     return MaterialApp(
       title: 'AVA',
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.dark,
+      theme: AppTheme.light,
+      darkTheme: AppTheme.dark,
+      themeMode: ThemeMode.light, // Forces the clean, human-designed light theme
       home: const MainShell(),
     );
   }
