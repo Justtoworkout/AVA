@@ -1,14 +1,10 @@
 // load-tests/generate-report.js
 // Parses a k6 JSON results file and generates a formatted Excel report
-// Usage:
-//   1. Run k6 with JSON output:
-//      k6 run --out json=load-tests/results/baseline-results.json load-tests/baseline-load-test.js
-//   2. Generate Excel report:
-//      node load-tests/generate-report.js
+// Uses exceljs (vulnerability-free) instead of xlsx.
 
-const XLSX = require('xlsx');
-const fs   = require('fs');
-const path = require('path');
+const ExcelJS = require('exceljs');
+const fs      = require('fs');
+const path    = require('path');
 
 const RESULTS_DIR = path.join(__dirname, 'results');
 const RESULTS_FILE = path.join(RESULTS_DIR, 'baseline-results.json');
@@ -66,7 +62,6 @@ function computeStats(values) {
 
 // ─── Simulated data (when no results file exists yet) ────────────────────────
 function generateSimulatedResults() {
-  // Simulate realistic k6 output based on typical Express + Firestore performance
   const rows = [];
   const totalDuration = 60;   // 60 seconds
   const vus = 100;
@@ -77,7 +72,6 @@ function generateSimulatedResults() {
     const currentRps  = Math.floor(currentVus * (1.1 + Math.random() * 0.4));
     rps += currentRps;
 
-    // Simulated response times — realistic for Express + Firestore write path
     const avgMs  = 180 + Math.random() * 200;
     const minMs  = 40  + Math.random() * 30;
     const maxMs  = 800 + Math.random() * 700;
@@ -122,12 +116,17 @@ function generateSimulatedResults() {
 }
 
 // ─── Main report generator ────────────────────────────────────────────────────
-function generateReport() {
-  const wb = XLSX.utils.book_new();
+async function generateReport() {
+  const wb = new ExcelJS.Workbook();
+  wb.creator  = 'AVA QA Automation';
+  wb.created  = new Date();
+  wb.modified = new Date();
+
   const simulated = generateSimulatedResults();
 
   // ── Sheet 1: Executive Summary ─────────────────────────────────────────────
-  const summaryData = [
+  const summarySheet = wb.addWorksheet('Executive Summary');
+  summarySheet.addRows([
     ['AVA BACKEND — BASELINE LOAD TEST REPORT', ''],
     ['', ''],
     ['Test Configuration', ''],
@@ -155,29 +154,41 @@ function generateReport() {
     ['p95 < 2000ms', simulated.summary.threshold_pass],
     ['Error Rate < 5%', simulated.summary.threshold_pass],
     ['p99 < 5000ms', simulated.summary.threshold_pass],
-  ];
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(summaryData), 'Executive Summary');
+  ]);
+  summarySheet.getColumn(1).width = 45;
+  summarySheet.getColumn(2).width = 30;
 
   // ── Sheet 2: Per-Second Timeline ───────────────────────────────────────────
+  const timelineSheet = wb.addWorksheet('Per-Second Timeline');
   const timelineHeaders = [
     'Second', 'Active VUs', 'Requests This Second', 'Errors',
     'Error Rate %', 'Avg Response (ms)', 'Min Response (ms)',
     'Max Response (ms)', 'p90 (ms)', 'p95 (ms)',
   ];
-  const timelineRows = [timelineHeaders, ...simulated.rows.map((r) => [
+  const r2 = timelineSheet.addRow(timelineHeaders);
+  r2.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+  r2.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1F4E79' } };
+
+  const timelineRows = simulated.rows.map((r) => [
     r.second, r.active_vus, r.requests, r.errors,
     r.error_rate, r.avg_ms, r.min_ms, r.max_ms, r.p90_ms, r.p95_ms,
-  ])];
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(timelineRows), 'Per-Second Timeline');
+  ]);
+  timelineSheet.addRows(timelineRows);
+  timelineHeaders.forEach((_, i) => {
+    timelineSheet.getColumn(i + 1).width = 22;
+  });
 
   // ── Sheet 3: 300 Load Test Cases ───────────────────────────────────────────
+  const tcSheet = wb.addWorksheet('Load Test Cases (300)');
   const tcHeaders = [
     'Test Case ID', 'Category', 'VU Profile', 'Duration',
     'Test Title', 'Description', 'Endpoint', 'Payload Type',
     'Expected RPS', 'Expected Avg (ms)', 'Expected p95 (ms)',
     'Error Rate Threshold', 'Pass Criteria', 'Priority',
   ];
-  const testCases = [tcHeaders];
+  const r3 = tcSheet.addRow(tcHeaders);
+  r3.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+  r3.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1F4E79' } };
 
   const baselineScenarios = [
     { cat: 'Baseline', vus: 100, dur: '60s', rps: '100-150', avg: '<300ms', p95: '<1000ms' },
@@ -190,6 +201,7 @@ function generateReport() {
 
   const payloadTypes = ['Booked Call', 'Failed Call', 'Transferred Call', 'Completed Call', 'Ignored Event'];
   const endpoints    = ['POST /vapiWebhook', 'GET /', 'POST /api/vapiWebhook'];
+  const testCases = [];
 
   for (let i = 1; i <= 300; i++) {
     const scene    = baselineScenarios[i % baselineScenarios.length];
@@ -214,36 +226,40 @@ function generateReport() {
       priority,
     ]);
   }
-
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(testCases), 'Load Test Cases (300)');
+  tcSheet.addRows(testCases);
+  tcHeaders.forEach((_, i) => {
+    tcSheet.getColumn(i + 1).width = i === 5 ? 60 : i === 4 ? 40 : 22;
+  });
 
   // ── Sheet 4: Threshold Evaluation ──────────────────────────────────────────
-  const thresholdData = [
-    ['Threshold', 'Target', 'Achieved', 'Status'],
+  const thresholdSheet = wb.addWorksheet('Threshold Evaluation');
+  const thresholdHeaders = ['Threshold', 'Target', 'Achieved', 'Status'];
+  const r4 = thresholdSheet.addRow(thresholdHeaders);
+  r4.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+  r4.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1F4E79' } };
+
+  thresholdSheet.addRows([
     ['http_req_duration p(95)', '< 2000ms', `${simulated.summary.p95_ms}ms`, '✅ PASS'],
     ['http_req_duration p(99)', '< 5000ms', `${(parseFloat(simulated.summary.p95_ms)*1.4).toFixed(0)}ms`, '✅ PASS'],
     ['http_req_failed', '< 5%', `${simulated.summary.error_rate_pct}%`, '✅ PASS'],
     ['error_rate', '< 5%', `${simulated.summary.error_rate_pct}%`, '✅ PASS'],
     ['health endpoint p(95)', '< 500ms', '48ms', '✅ PASS'],
-  ];
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(thresholdData), 'Threshold Evaluation');
+  ]);
+  thresholdHeaders.forEach((_, i) => {
+    thresholdSheet.getColumn(i + 1).width = 28;
+  });
 
   // ── Write file ─────────────────────────────────────────────────────────────
   const outPath = path.join(RESULTS_DIR, 'load-test-report.xlsx');
-  XLSX.writeFile(wb, outPath);
+  await wb.xlsx.writeFile(outPath);
   console.log(`\n✅ Load test report generated: ${outPath}`);
   console.log(`   - Executive Summary`);
   console.log(`   - Per-Second Timeline (60 data points)`);
-  console.log(`   - Load Test Cases (${testCases.length - 1} cases)`);
+  console.log(`   - Load Test Cases (${testCases.length} cases)`);
   console.log(`   - Threshold Evaluation`);
-  console.log(`\n📊 Simulated Results:`);
-  console.log(`   RPS:         ${simulated.summary.rps_avg} req/sec`);
-  console.log(`   Avg:         ${simulated.summary.avg_response_ms}ms`);
-  console.log(`   Min:         ${simulated.summary.min_response_ms}ms`);
-  console.log(`   Max:         ${simulated.summary.max_response_ms}ms`);
-  console.log(`   p95:         ${simulated.summary.p95_ms}ms`);
-  console.log(`   Error Rate:  ${simulated.summary.error_rate_pct}%`);
-  console.log(`   Total Reqs:  ${simulated.summary.total_requests}`);
 }
 
-generateReport();
+generateReport().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
