@@ -52,18 +52,17 @@ class AppointmentDetailSheet extends StatelessWidget {
         ? 'All day event'
         : '${DateFormat('h:mm a').format(appt.start)} – ${DateFormat('h:mm a').format(appt.end)}';
 
+    final isConfirmed = appt.status.toLowerCase() == 'confirmed';
+    final statusColor = isConfirmed ? AppTheme.accent : AppTheme.alert;
+
     return Container(
       constraints: BoxConstraints(
         maxHeight: MediaQuery.of(context).size.height * 0.88,
       ),
-      decoration: const BoxDecoration(
-        color: AppTheme.surfaceCard,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-        border: Border(
-          top: BorderSide(color: AppTheme.border, width: 1),
-          left: BorderSide(color: AppTheme.border, width: 1),
-          right: BorderSide(color: AppTheme.border, width: 1),
-        ),
+      decoration: BoxDecoration(
+        color: AppTheme.surface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(16)), // Clean modern top corners
+        border: Border.all(color: AppTheme.line, width: 1),
       ),
       child: SafeArea(
         child: SingleChildScrollView(
@@ -98,29 +97,26 @@ class AppointmentDetailSheet extends StatelessWidget {
                   ),
                   const Spacer(),
                   Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
-                      color: AppTheme.booked.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: AppTheme.booked.withValues(alpha: 0.4),
-                      ),
+                      color: statusColor.withValues(alpha: 0.06),
+                      borderRadius: BorderRadius.circular(6), // Segmented corners
+                      border: Border.all(color: statusColor.withValues(alpha: 0.2)),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(
-                          Icons.check_circle_rounded,
+                        Icon(
+                          isConfirmed ? Icons.check_circle_outline_rounded : Icons.highlight_off_rounded,
                           size: 13,
-                          color: AppTheme.booked,
+                          color: statusColor,
                         ),
                         const SizedBox(width: 5),
                         Text(
                           appt.status.toUpperCase(),
-                          style: const TextStyle(
-                            color: AppTheme.booked,
-                            fontSize: 10,
+                          style: TextStyle(
+                            color: statusColor,
+                            fontSize: 9,
                             fontWeight: FontWeight.w700,
                             letterSpacing: 0.5,
                           ),
@@ -140,29 +136,27 @@ class AppointmentDetailSheet extends StatelessWidget {
               ),
               const SizedBox(height: 20),
 
-              // Structured Info Container
+              // Structured Info Container (Stripe-Style Soft Shadow Card)
               Container(
                 decoration: BoxDecoration(
-                  color: AppTheme.surfaceElevated.withValues(alpha: 0.5),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: AppTheme.border),
+                  color: AppTheme.surface,
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: AppTheme.cardShadow,
+                  border: Border.all(color: AppTheme.line.withValues(alpha: 0.5)),
                 ),
                 child: Column(
                   children: [
                     // Patient Name
                     _InfoRow(
-                      icon: Icons.person_rounded,
-                      iconColor: AppTheme.primary,
+                      icon: Icons.person_outline_rounded,
                       label: 'Patient Name',
                       value: patientName,
-                      isFirst: true,
                     ),
                     const Divider(height: 1),
 
                     // Service / Purpose
                     _InfoRow(
-                      icon: Icons.medical_services_rounded,
-                      iconColor: const Color(0xFF60A5FA),
+                      icon: Icons.assignment_outlined,
                       label: 'Appointment',
                       value: serviceType,
                     ),
@@ -170,8 +164,7 @@ class AppointmentDetailSheet extends StatelessWidget {
 
                     // Date
                     _InfoRow(
-                      icon: Icons.calendar_today_rounded,
-                      iconColor: const Color(0xFFFBBF24),
+                      icon: Icons.calendar_today_outlined,
                       label: 'Date',
                       value: dateStr,
                     ),
@@ -179,8 +172,7 @@ class AppointmentDetailSheet extends StatelessWidget {
 
                     // Time & Duration
                     _InfoRow(
-                      icon: Icons.access_time_filled_rounded,
-                      iconColor: const Color(0xFF4ADE80),
+                      icon: Icons.access_time_rounded,
                       label: 'Time',
                       value: '$timeStr (${appt.durationLabel})',
                     ),
@@ -188,14 +180,11 @@ class AppointmentDetailSheet extends StatelessWidget {
 
                     // Location
                     _InfoRow(
-                      icon: Icons.location_on_rounded,
-                      iconColor: const Color(0xFFFF7A00),
+                      icon: Icons.location_on_outlined,
                       label: 'Location',
-                      value: (appt.location != null &&
-                              appt.location!.trim().isNotEmpty)
+                      value: (appt.location != null && appt.location!.trim().isNotEmpty)
                           ? appt.location!
                           : 'Main Hospital Clinic / Desk',
-                      isLast: true,
                     ),
                   ],
                 ),
@@ -206,10 +195,10 @@ class AppointmentDetailSheet extends StatelessWidget {
               const Text(
                 'NOTES & DETAILS',
                 style: TextStyle(
-                  color: AppTheme.textMuted,
-                  fontSize: 11,
+                  color: AppTheme.textSecondary,
+                  fontSize: 10,
                   fontWeight: FontWeight.w700,
-                  letterSpacing: 0.8,
+                  letterSpacing: 0.5,
                 ),
               ),
               const SizedBox(height: 8),
@@ -217,13 +206,13 @@ class AppointmentDetailSheet extends StatelessWidget {
                 width: double.infinity,
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: AppTheme.surfaceElevated.withValues(alpha: 0.3),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: AppTheme.border),
+                  color: AppTheme.surface,
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: AppTheme.cardShadow,
+                  border: Border.all(color: AppTheme.line.withValues(alpha: 0.5)),
                 ),
                 child: Text(
-                  (appt.description != null &&
-                          appt.description!.trim().isNotEmpty)
+                  (appt.description != null && appt.description!.trim().isNotEmpty)
                       ? appt.description!
                       : 'Booked via AVA Voice AI Companion. Synced directly with Google Calendar.',
                   style: const TextStyle(
@@ -235,7 +224,7 @@ class AppointmentDetailSheet extends StatelessWidget {
               ),
               const SizedBox(height: 24),
 
-              // Copy Details Action Button
+              // Copy Details Action Button (Stripe Indigo Solid Styling)
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
@@ -251,12 +240,14 @@ Status: ${appt.status}
                     Clipboard.setData(ClipboardData(text: text));
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
-                        content:
-                            const Text('Appointment details copied to clipboard'),
-                        backgroundColor: AppTheme.surfaceElevated,
+                        content: const Text(
+                          'Appointment details copied to clipboard',
+                          style: TextStyle(color: Colors.white),
+                        ),
+                        backgroundColor: AppTheme.ink,
                         behavior: SnackBarBehavior.floating,
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
+                          borderRadius: BorderRadius.circular(8),
                         ),
                       ),
                     );
@@ -269,7 +260,7 @@ Status: ${appt.status}
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
+                      borderRadius: BorderRadius.circular(8), // Aligned to token corners
                     ),
                     elevation: 0,
                   ),
@@ -285,19 +276,13 @@ Status: ${appt.status}
 
 class _InfoRow extends StatelessWidget {
   final IconData icon;
-  final Color iconColor;
   final String label;
   final String value;
-  final bool isFirst;
-  final bool isLast;
 
   const _InfoRow({
     required this.icon,
-    required this.iconColor,
     required this.label,
     required this.value,
-    this.isFirst = false,
-    this.isLast = false,
   });
 
   @override
@@ -307,13 +292,10 @@ class _InfoRow extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: iconColor.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(icon, color: iconColor, size: 18),
+          // Elegant inline icon in Stripe style: neutral and quiet
+          Padding(
+            padding: const EdgeInsets.only(top: 2),
+            child: Icon(icon, color: AppTheme.textSecondary, size: 18),
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -324,7 +306,7 @@ class _InfoRow extends StatelessWidget {
                   label,
                   style: const TextStyle(
                     color: AppTheme.textMuted,
-                    fontSize: 11,
+                    fontSize: 10,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -334,7 +316,7 @@ class _InfoRow extends StatelessWidget {
                   style: const TextStyle(
                     color: AppTheme.textPrimary,
                     fontSize: 14,
-                    fontWeight: FontWeight.w600,
+                    fontWeight: FontWeight.w700,
                     height: 1.3,
                   ),
                 ),

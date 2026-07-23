@@ -514,6 +514,18 @@ class _RecentCallRow extends StatelessWidget {
   final CallRecord call;
   const _RecentCallRow({required this.call});
 
+  String _formatDateTime(DateTime dt) {
+    final now = DateTime.now();
+    if (dt.year == now.year && dt.month == now.month && dt.day == now.day) {
+      return DateFormat('h:mm a').format(dt);
+    }
+    final yesterday = now.subtract(const Duration(days: 1));
+    if (dt.year == yesterday.year && dt.month == yesterday.month && dt.day == yesterday.day) {
+      return 'Yesterday · ${DateFormat('h:mm a').format(dt)}';
+    }
+    return DateFormat('MMM d · h:mm a').format(dt);
+  }
+
   @override
   Widget build(BuildContext context) {
     final color = AppTheme.outcomeColor(call.outcome);
@@ -549,7 +561,7 @@ class _RecentCallRow extends StatelessWidget {
             ),
           ),
           Text(
-            DateFormat('h:mm a').format(call.timestamp),
+            _formatDateTime(call.timestamp),
             style: const TextStyle(
               color: AppTheme.textSecondary,
               fontSize: 11,
