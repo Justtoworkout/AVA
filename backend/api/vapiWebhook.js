@@ -55,7 +55,8 @@ async function getAccessToken() {
 
   const signer = crypto.createSign('RSA-SHA256');
   signer.update(`${header}.${payload}`);
-  const sig = signer.sign(SA.private_key, 'base64url');
+  // .sign() without encoding returns a Buffer; convert to base64url manually
+  const sig = signer.sign(SA.private_key).toString('base64url');
   const jwt = `${header}.${payload}.${sig}`;
 
   const res = await fetch('https://oauth2.googleapis.com/token', {
