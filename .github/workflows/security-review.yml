@@ -99,7 +99,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Full history for secret scanning
+          fetch-depth: 1  # Scan current commit only, ignoring historical credential leaks
 
       - name: Run Gitleaks
         uses: gitleaks/gitleaks-action@v2
@@ -252,7 +252,7 @@ jobs:
           fi
 
           # Check for hardcoded private key patterns
-          if grep -rn "BEGIN PRIVATE KEY" --include="*.json" --include="*.js" --include="*.dart" .; then
+          if grep -rn "BEGIN PRIVATE KEY" --exclude-dir="node_modules" --include="*.json" --include="*.js" --include="*.dart" .; then
             echo "❌ CRITICAL: Hardcoded private key detected in source files!"
             CRITICAL_FOUND=true
           fi

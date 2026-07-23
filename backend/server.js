@@ -43,6 +43,15 @@ try {
   } else if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
     // Google Cloud / ADC path
     admin.initializeApp({ credential: admin.credential.applicationDefault() });
+  } else if (process.env.NODE_ENV === 'test' || process.env.CI) {
+    // CI/Test mode: prevent default credentials crash by using a mock credential config
+    console.log('[INFO] CI/Test environment detected — using mock Firebase Admin credentials');
+    admin.initializeApp({
+      projectId: 'gamma-86108',
+      credential: {
+        getAccessToken: () => Promise.resolve({ access_token: 'mock-token', expires_in: 3600 })
+      }
+    });
   } else {
     console.warn('[WARN] No Firebase credentials found. Firestore writes will fail.');
     admin.initializeApp();

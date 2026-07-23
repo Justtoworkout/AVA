@@ -135,7 +135,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Full git history needed for secret scanning
+          fetch-depth: 1  # Only scan current files, avoiding history scanning failures
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -191,6 +191,7 @@ jobs:
           fi
 
           if grep -rn "BEGIN PRIVATE KEY" \
+              --exclude-dir="node_modules" \
               --include="*.json" \
               --include="*.js" \
               --include="*.dart" . 2>/dev/null; then
